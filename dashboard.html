@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Dashboard Industriel</title>
+    <style>
+        body { font-family: Arial; background: #1a1a2e; color: white; padding: 20px; }
+        .card { background: #16213e; border-radius: 10px; padding: 20px; margin: 10px; display: inline-block; width: 250px; }
+        .valeur { font-size: 48px; text-align: center; margin: 20px 0; }
+        .success { color: #4c9f70; }
+        .error { color: #ef476f; }
+    </style>
+</head>
+<body>
+    <h1>🏭 Supervision Industrielle</h1>
+    <div>
+        <div class="card">
+            <h3>🌡️ Température</h3>
+            <div class="valeur" id="temp">-- °C</div>
+        </div>
+        <div class="card">
+            <h3>⏲️ Pression</h3>
+            <div class="valeur" id="press">-- hPa</div>
+        </div>
+    </div>
+    <div id="status" class="success">🟢 En attente des données...</div>
+
+    <script>
+        async function charger() {
+            try {
+                // Température
+                const tempRes = await fetch('http://127.0.0.1:8000/mesures/temperature');
+                if (tempRes.ok) {
+                    const tempData = await tempRes.json();
+                    if (tempData.mesures && tempData.mesures.length > 0) {
+                        document.getElementById('temp').innerHTML = tempData.mesures[0].valeur + ' °C';
+                    }
+                }
+                
+                // Pression
+                const pressRes = await fetch('http://127.0.0.1:8000/mesures/pression');
+                if (pressRes.ok) {
+                    const pressData = await pressRes.json();
+                    if (pressData.mesures && pressData.mesures.length > 0) {
+                        document.getElementById('press').innerHTML = pressData.mesures[0].valeur + ' hPa';
+                    }
+                }
+                
+                document.getElementById('status').innerHTML = '🟢 Données mises à jour - ' + new Date().toLocaleTimeString();
+                document.getElementById('status').className = 'success';
+            } catch(e) {
+                document.getElementById('status').innerHTML = '🔴 Erreur: ' + e.message;
+                document.getElementById('status').className = 'error';
+            }
+        }
+        
+        // Charger au démarrage et toutes les 3 secondes
+        charger();
+        setInterval(charger, 3000);
+    </script>
+</body>
+</html>
