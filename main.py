@@ -2,7 +2,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from datetime import datetime
-from typing import Optional, List
+from typing import Optional
 from influxdb_client import InfluxDBClient
 from influxdb_client.client.write_api import SYNCHRONOUS
 import os
@@ -20,20 +20,27 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Configuration InfluxDB - À MODIFIER AVEC VOS VALEURS
-INFLUXDB_URL = "https://eu-central-1-1.aws.cloud2.influxdata.com"
-INFLUXDB_TOKEN = "rRPDt_dCUB_KxObZaP_1RU7mMO5rX6brZXnwlVN7knFlHV48JDtSlQXnkTfY9AW0fP-ue_YQe792eWsl7p8T1A=="
-INFLUXDB_ORG = "Development"
-INFLUXDB_BUCKET = "mesures"
+# Configuration InfluxDB - Variables d'environnement
+INFLUXDB_URL = os.environ.get("INFLUXDB_URL", "https://eu-central-1-1.aws.cloud2.influxdata.com")
+INFLUXDB_TOKEN = os.environ.get("INFLUXDB_TOKEN", "rRPDt_dCUB_KxObZaP_1RU7mMO5rX6brZXnwlVN7knFlHV48JDtSlQXnkTfY9AW0fP-ue_YQe792eWsl7p8T1A==")
+INFLUXDB_ORG = os.environ.get("INFLUXDB_ORG", "Development")
+INFLUXDB_BUCKET = os.environ.get("INFLUXDB_BUCKET", "mesures")
 
 # Client InfluxDB
-try:
-    client = InfluxDBClient(url=INFLUXDB_URL, token=INFLUXDB_TOKEN, org=INFLUXDB_ORG)
-    write_api = client.write_api(write_options=SYNCHRONOUS)
-    query_api = client.query_api()
-    print("✅ Connexion à InfluxDB établie")
-except Exception as e:
-    print(f"⚠️ Erreur de connexion à InfluxDB: {e}")
+client = None
+write_api = None
+query_api = None
+
+if INFLUXDB_TOKEN:
+    try:
+        client = InfluxDBClient(url=INFLUXDB_URL, token=INFLUXDB_TOKEN, org=INFLUXDB_ORG)
+        write_api = client.write_api(write_options=SYNCHRONOUS)
+        query_api = client.query_api()
+        print("✅ Connexion à InfluxDB établie")
+    except Exception as e:
+        print(f"⚠️ Erreur de connexion à InfluxDB: {e}")
+else:
+    print("⚠️ Token InfluxDB non configuré - Mode dégradé")
 
 # ==================== MODÈLES ====================
 
@@ -49,6 +56,7 @@ def accueil():
     return {
         "message": "API Industrielle - PFE",
         "version": "1.0",
+        "status": "online",
         "endpoints": {
             "POST /mesures": "Envoyer une mesure",
             "GET /mesures/{capteur}": "Lire les mesures d'un capteur"
@@ -58,6 +66,10 @@ def accueil():
 @app.post("/mesures")
 async def recevoir_mesure(mesure: Mesure):
     """Reçoit une mesure et la stocke dans InfluxDB"""
+    
+    if not write_api:
+        raise HTTPException(status_code=503, detail="Service InfluxDB non disponible")
+    
     try:
         point = {
             "measurement": "mesure",
@@ -85,6 +97,10 @@ async def recevoir_mesure(mesure: Mesure):
 @app.get("/mesures/{capteur}")
 async def lire_mesures(capteur: str, limit: int = 50):
     """Récupère les dernières mesures d'un capteur"""
+    
+    if not query_api:
+        raise HTTPException(status_code=503, detail="Service InfluxDB non disponible")
+    
     try:
         query = f'''
         from(bucket: "{INFLUXDB_BUCKET}")
@@ -114,6 +130,13 @@ async def lire_mesures(capteur: str, limit: int = 50):
 
 if __name__ == "__main__":
     import uvicorn
-    print("🚀 Démarrage de l'API Industrielle...")
-    print("📖 Documentation disponible sur http://127.0.0.1:8000/docs")
-    uvicorn.run(app, host="127.0.0.1", port=8000)
+    
+    # Railway utilise le port 8080 par défaut
+    port = int(os.environ.get("PORT", 8080))
+    host = "0.0.0.0"
+    
+    print(f"🚀 Démarrage de l'API Industrielle sur {host}:{port}")
+    print(f"📖 Documentation disponible sur http://{host}:{port}/docs")
+    print(f"🌐 API accessible via Railway")
+    
+    uvicorn.run(app, host=host, port=port)
