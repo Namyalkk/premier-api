@@ -5,9 +5,8 @@ from datetime import datetime
 
 # ==================== CONFIGURATION ====================
 
-# À MODIFIER selon votre environnement
-API_URL = "http://127.0.0.1:8000/mesures"  # Local
-# API_URL = "https://votre-api.onrender.com/mesures"  # Cloud (après déploiement)
+# URL de votre API déployée sur Railway
+API_URL = "https://premier-api-production-b355.up.railway.app/mesures"
 
 # Configuration des capteurs simulés
 CAPTEURS = [
