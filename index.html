@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Accueil - Supervision Industrielle</title>
+    <link rel="stylesheet" href="style.css">
+    <style>
+        .hero {
+            text-align: center;
+            padding: 3rem;
+            background: linear-gradient(135deg, var(--primary-dark), var(--dark));
+            border-radius: 20px;
+            margin-bottom: 2rem;
+        }
+        .hero h1 {
+            font-size: 2.5rem;
+            margin-bottom: 1rem;
+        }
+        .hero p {
+            font-size: 1.2rem;
+            opacity: 0.9;
+        }
+        .stat-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-top: 2rem;
+        }
+        .feature-icon {
+            font-size: 2rem;
+            display: block;
+            margin-bottom: 0.5rem;
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar">
+        <div class="nav-container">
+            <a href="index.html" class="logo">
+    <img src="assets/logo.png" alt="Logo" style="height: 40px;">
+    <span>Supervision Industrielle</span>
+</a>
+            <div class="nav-links">
+                <a href="index.html" class="active">Accueil</a>
+                <a href="dashboard.html">Dashboard</a>
+                <a href="historique.html">Historique</a>
+                <a href="alertes.html">Alertes</a>
+                <a href="documentation.html">Documentation</a>
+            </div>
+        </div>
+    </nav>
+
+    <main class="main-content">
+        <div class="hero">
+            <h1>Bienvenue sur votre plateforme de supervision industrielle</h1>
+            <p>Surveillez vos capteurs en temps réel, où que vous soyez</p>
+        </div>
+
+        <div class="grid-3" id="liveValues">
+            <!-- Les valeurs seront chargées dynamiquement -->
+        </div>
+
+        <div class="card">
+            <h2>📊 À propos du projet</h2>
+            <p>Ce projet a été développé dans le cadre d'un Projet de Fin d'Études (PFE) de licence. Il démontre la faisabilité d'une solution IoT complète pour la surveillance industrielle à distance.</p>
+            <br>
+            <p><strong>Technologies utilisées :</strong></p>
+            <ul style="margin-left: 2rem; margin-top: 0.5rem;">
+                <li>🐍 FastAPI (backend REST)</li>
+                <li>💾 InfluxDB Cloud (base de données temps réel)</li>
+                <li>🎨 HTML5/CSS3/JavaScript (frontend)</li>
+                <li>📊 Chart.js (graphiques interactifs)</li>
+                <li>☁️ Render + Netlify (déploiement cloud)</li>
+            </ul>
+        </div>
+
+        <div class="grid-2">
+            <div class="card">
+                <h3>🎯 Objectif du projet</h3>
+                <p>Fournir une solution accessible, modulaire et open source pour la collecte, le stockage et la visualisation de données industrielles en temps réel.</p>
+            </div>
+            <div class="card">
+                <h3>🌐 Accès à distance</h3>
+                <p>Cette plateforme est accessible depuis n'importe où dans le monde. Les données sont mises à jour automatiquement toutes les 3 secondes.</p>
+            </div>
+        </div>
+    </main>
+
+    <script src="script.js"></script>
+    <script>
+        async function chargerValeurs() {
+            const container = document.getElementById('liveValues');
+            
+            for (const capteur of capteurs.slice(0, 4)) {
+                const valeur = await getDerniereValeur(capteur.id);
+                const card = document.createElement('div');
+                card.className = 'value-card';
+                card.innerHTML = `
+                    <span class="feature-icon">${capteur.nom.split(' ')[0]}</span>
+                    <h4>${capteur.nom}</h4>
+                    <div class="valeur">${valeur !== null ? valeur : '--'}</div>
+                    <div class="unite">${capteur.unite}</div>
+                `;
+                container.appendChild(card);
+            }
+        }
+        
+        chargerValeurs();
+        setInterval(chargerValeurs, 10000);
+    </script>
+</body>
+</html>

@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Documentation - Supervision Industrielle</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="nav-container">
+          
+<a href="index.html" class="logo">
+    <img src="assets/logo.png" alt="Logo" style="height: 40px;">
+    <span>Supervision Industrielle</span>
+</a>
+            <div class="nav-links">
+                <a href="index.html">Accueil</a>
+                <a href="dashboard.html">Dashboard</a>
+                <a href="historique.html">Historique</a>
+                <a href="alertes.html">Alertes</a>
+                <a href="documentation.html" class="active">Documentation</a>
+            </div>
+        </div>
+    </nav>
+
+    <main class="main-content">
+        <h1>📚 Documentation technique</h1>
+        
+        <div class="card">
+            <h2>🔗 Endpoints de l'API</h2>
+            
+            <h3>GET /</h3>
+            <pre style="background: #0f0f1a; padding: 1rem; border-radius: 8px; overflow-x: auto;">
+{
+  "message": "API Industrielle - PFE"
+}
+            </pre>
+            
+            <h3 style="margin-top: 1rem;">POST /mesures</h3>
+            <p><strong>Description :</strong> Envoyer une nouvelle mesure</p>
+            <pre style="background: #0f0f1a; padding: 1rem; border-radius: 8px; overflow-x: auto;">
+// Requête
+POST https://votre-api.onrender.com/mesures
+Content-Type: application/json
+
+{
+  "capteur": "temperature",
+  "valeur": 23.5,
+  "unite": "°C"
+}
+
+// Réponse
+{
+  "status": "ok",
+  "message": "temperature = 23.5 °C"
+}
+            </pre>
+            
+            <h3 style="margin-top: 1rem;">GET /mesures/{capteur}</h3>
+            <p><strong>Description :</strong> Récupérer les dernières mesures d'un capteur</p>
+            <pre style="background: #0f0f1a; padding: 1rem; border-radius: 8px; overflow-x: auto;">
+// Requête
+GET https://votre-api.on

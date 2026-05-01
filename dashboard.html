@@ -1,61 +1,119 @@
 <!DOCTYPE html>
-<html>
+<html lang="fr">
 <head>
-    <title>Dashboard Industriel</title>
-    <style>
-        body { font-family: Arial; background: #1a1a2e; color: white; padding: 20px; }
-        .card { background: #16213e; border-radius: 10px; padding: 20px; margin: 10px; display: inline-block; width: 250px; }
-        .valeur { font-size: 48px; text-align: center; margin: 20px 0; }
-        .success { color: #4c9f70; }
-        .error { color: #ef476f; }
-    </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - Supervision Industrielle</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
-    <h1>🏭 Supervision Industrielle</h1>
-    <div>
-        <div class="card">
-            <h3>🌡️ Température</h3>
-            <div class="valeur" id="temp">-- °C</div>
+    <nav class="navbar">
+        <div class="nav-container">
+            <a href="index.html" class="logo">
+    <img src="assets/logo.png" alt="Logo" style="height: 40px;">
+    <span>Supervision Industrielle</span>
+</a>
+            <div class="nav-links">
+                <a href="index.html">Accueil</a>
+                <a href="dashboard.html" class="active">Dashboard</a>
+                <a href="historique.html">Historique</a>
+                <a href="alertes.html">Alertes</a>
+                <a href="documentation.html">Documentation</a>
+            </div>
         </div>
-        <div class="card">
-            <h3>⏲️ Pression</h3>
-            <div class="valeur" id="press">-- hPa</div>
-        </div>
-    </div>
-    <div id="status" class="success">🟢 En attente des données...</div>
+    </nav>
 
+    <main class="main-content">
+        <h1>📈 Tableau de bord temps réel</h1>
+        
+        <div class="status">
+            <span class="live-badge"></span> Données en temps réel | Mise à jour toutes les 3 secondes
+        </div>
+
+        <div class="grid-2" id="dashboardContainer">
+            <!-- Graphiques générés dynamiquement -->
+        </div>
+    </main>
+
+    <script src="script.js"></script>
     <script>
-        async function charger() {
-            try {
-                // Température
-                const tempRes = await fetch('http://127.0.0.1:8000/mesures/temperature');
-                if (tempRes.ok) {
-                    const tempData = await tempRes.json();
-                    if (tempData.mesures && tempData.mesures.length > 0) {
-                        document.getElementById('temp').innerHTML = tempData.mesures[0].valeur + ' °C';
-                    }
+        let charts = {};
+        let dernieresValeurs = {};
+
+        async function initialiserDashboard() {
+            const container = document.getElementById('dashboardContainer');
+            container.innerHTML = '';
+            
+            for (const capteur of capteurs) {
+                // Créer la carte
+                const card = document.createElement('div');
+                card.className = 'card';
+                card.id = `card-${capteur.id}`;
+                card.innerHTML = `
+                    <h3>${capteur.nom}</h3>
+                    <div class="valeur" id="valeur-${capteur.id}" style="font-size: 36px; text-align: center; margin: 10px 0;">-- ${capteur.unite}</div>
+                    <canvas id="chart-${capteur.id}"></canvas>
+                `;
+                container.appendChild(card);
+                
+                // Charger historique
+                const historique = await getHistorique(capteur.id, 30);
+                const labels = historique.map(m => new Date(m.time).toLocaleTimeString());
+                const values = historique.map(m => m.valeur);
+                
+                if (historique.length > 0) {
+                    dernieresValeurs[capteur.id] = historique[historique.length - 1].valeur;
+                    document.getElementById(`valeur-${capteur.id}`).innerHTML = `${dernieresValeurs[capteur.id]} ${capteur.unite}`;
                 }
                 
-                // Pression
-                const pressRes = await fetch('http://127.0.0.1:8000/mesures/pression');
-                if (pressRes.ok) {
-                    const pressData = await pressRes.json();
-                    if (pressData.mesures && pressData.mesures.length > 0) {
-                        document.getElementById('press').innerHTML = pressData.mesures[0].valeur + ' hPa';
+                // Créer graphique
+                const ctx = document.getElementById(`chart-${capteur.id}`).getContext('2d');
+                charts[capteur.id] = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            label: capteur.nom,
+                            data: values,
+                            borderColor: capteur.couleur,
+                            backgroundColor: capteur.couleur + '20',
+                            fill: true,
+                            tension: 0.3
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: true,
+                        plugins: {
+                            legend: { position: 'bottom' }
+                        }
                     }
-                }
-                
-                document.getElementById('status').innerHTML = '🟢 Données mises à jour - ' + new Date().toLocaleTimeString();
-                document.getElementById('status').className = 'success';
-            } catch(e) {
-                document.getElementById('status').innerHTML = '🔴 Erreur: ' + e.message;
-                document.getElementById('status').className = 'error';
+                });
             }
         }
-        
-        // Charger au démarrage et toutes les 3 secondes
-        charger();
-        setInterval(charger, 3000);
+
+        async function mettreAJour() {
+            for (const capteur of capteurs) {
+                const historique = await getHistorique(capteur.id, 30);
+                if (historique.length > 0) {
+                    const labels = historique.map(m => new Date(m.time).toLocaleTimeString());
+                    const values = historique.map(m => m.valeur);
+                    
+                    dernieresValeurs[capteur.id] = historique[historique.length - 1].valeur;
+                    document.getElementById(`valeur-${capteur.id}`).innerHTML = `${dernieresValeurs[capteur.id]} ${capteur.unite}`;
+                    
+                    if (charts[capteur.id]) {
+                        charts[capteur.id].data.labels = labels;
+                        charts[capteur.id].data.datasets[0].data = values;
+                        charts[capteur.id].update();
+                    }
+                }
+            }
+        }
+
+        initialiserDashboard();
+        setInterval(mettreAJour, 3000);
     </script>
 </body>
 </html>

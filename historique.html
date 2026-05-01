@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Historique - Supervision Industrielle</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <nav class="navbar">
+        <div class="nav-container">
+            <a href="index.html" class="logo">
+    <img src="assets/logo.png" alt="Logo" style="height: 40px;">
+    <span>Supervision Industrielle</span>
+</a>
+            <div class="nav-links">
+                <a href="index.html">Accueil</a>
+                <a href="dashboard.html">Dashboard</a>
+                <a href="historique.html" class="active">Historique</a>
+                <a href="alertes.html">Alertes</a>
+                <a href="documentation.html">Documentation</a>
+            </div>
+        </div>
+    </nav>
+
+    <main class="main-content">
+        <h1>📅 Consultation historique</h1>
+        
+        <div class="card">
+            <h3>Filtres</h3>
+            <div class="grid-4">
+                <select id="selectCapteur">
+                    <option value="temperature">🌡️ Température</option>
+                    <option value="pression">⏲️ Pression</option>
+                    <option value="vibration">📳 Vibration</option>
+                    <option value="debit_gaz">🔥 Débit Gaz</option>
+                </select>
+                <input type="datetime-local" id="dateDebut">
+                <input type="datetime-local" id="dateFin">
+                <button onclick="chargerHistorique()">🔍 Rechercher</button>
+            </div>
+        </div>
+
+        <div class="grid-2">
+            <div class="card">
+                <h3>Graphique d'évolution</h3>
+                <canvas id="historiqueChart"></canvas>
+            </div>
+            <div class="card">
+                <h3>Export des données</h3>
+                <p>Téléchargez les données affichées au format CSV.</p>
+                <br>
+                <button onclick="exporterCSV()">📥 Exporter en CSV</button>
+                <p style="margin-top: 1rem; font-size: 0.8rem; color: #888;">Le fichier CSV peut être ouvert avec Excel.</p>
+            </div>
+        </div>
+
+        <div class="card">
+            <h3>Tableau des données</h3>
+            <div style="overflow-x: auto;">
+                <table id="dataTable">
+                    <thead>
+                        <tr><th>Date et heure</th><th>Valeur</th><th>Unité</th></tr>
+                    </thead>
+                    <tbody id="tableBody">
+                        <tr><td colspan="3">Chargement...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+
+    <script src="script.js"></script>
+    <script>
+        let historiqueChart = null;
+        let dernieresDonnees = [];
+
+        async function chargerHistorique() {
+            const capteur = document.getElementById('selectCapteur').value;
+            const dateDebut = document.getElementById('dateDebut').value;
+            const dateFin = document.getElementById('dateFin').value;
+            
+            let url = `${API_URL}/mesures/${capteur}?limit=100`;
+            
+            const historique = await getHistorique(capteur, 100);
+            dernieresDonnees = historique;
+            
+            // Filtrage par date
+            let filtrees = historique;
+            if (dateDebut) {
+                const debut = new Date(dateDebut);
+                filtrees = filtrees.filter(m => new Date(m.time) >= debut);
+            }
+            if (dateFin) {
+                const fin = new Date(dateFin);
+                filtrees = filtrees.filter(m => new Date(m.time) <= fin);
+            }
+            
+            // Mise à jour tableau
+            const tbody = document.getElementById('tableBody');
+            tbody.innerHTML = '';
+            
+            if (filtrees.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="3">Aucune donnée trouvée</td></tr>';
+            } else {
+                for (const mesure of filtrees.reverse()) {
+                    const row = tbody.insertRow();
+                    row.insertCell(0).textContent = formatDate(mesure.time);
+                    row.insertCell(1).textContent = mesure.valeur;
+                    row.insertCell(2).textContent = capteurs.find(c => c.id === capteur)?.unite || '';
+                }
+            }
+            
+            // Mise à jour graphique
+            if (historiqueChart) {
+                historiqueChart.destroy();
+            }
+            
+            const ctx = document.getElementById('historiqueChart').getContext('2d');
+            historiqueChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: filtrees.map(m => new Date(m.time).toLocaleString()),
+                    values: filtrees.map(m => m.valeur),
+                    datasets: [{
+                        label: capteurs.find(c => c.id === capteur)?.nom,
+                        data: filtrees.map(m => m.valeur),
+                        borderColor: '#00b4d8',
+                        backgroundColor: '#00b4d820',
+                        fill: true,
+                        tension: 0.3
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: { position: 'bottom' }
+                    }
+                }
+            });
+        }
+        
+        function exporterCSV() {
+            if (dernieresDonnees.length === 0) {
+                alert("Aucune donnée à exporter");
+                return;
+            }
+            
+            const capteur = document.getElementById('selectCapteur').value;
+            const unite = capteurs.find(c => c.id === capteur)?.unite || '';
+            
+            let csv = "Date,Heure,Valeur (${unite})\n";
+            for (const mesure of dernieresDonnees) {
+                const date = new Date(mesure.time);
+                csv += `${date.toLocaleDateString()},${date.toLocaleTimeString()},${mesure.valeur}\n`;
+            }
+            
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `historique_${capteur}_${new Date().toISOString()}.csv`;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+        
+        // Chargement initial
+        document.getElementById('dateDebut').value = new Date(Date.now() - 7*24*3600000).toISOString().slice(0, 16);
+        document.getElementById('dateFin').value = new Date().toISOString().slice(0, 16);
+        chargerHistorique();
+    </script>
+</body>
+</html>

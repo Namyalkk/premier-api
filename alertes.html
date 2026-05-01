@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Alertes - Supervision Industrielle</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="nav-container">
+            <a href="index.html" class="logo">
+    <img src="assets/logo.png" alt="Logo" style="height: 40px;">
+    <span>Supervision Industrielle</span>
+</a>
+            <div class="nav-links">
+                <a href="index.html">Accueil</a>
+                <a href="dashboard.html">Dashboard</a>
+                <a href="historique.html">Historique</a>
+                <a href="alertes.html" class="active">Alertes</a>
+                <a href="documentation.html">Documentation</a>
+            </div>
+        </div>
+    </nav>
+
+    <main class="main-content">
+        <h1>🚨 Gestion des alertes</h1>
+        
+        <div class="grid-2">
+            <div class="card">
+                <h3>➕ Créer une nouvelle alerte</h3>
+                <div style="display: flex; flex-direction: column; gap: 1rem;">
+                    <select id="newCapteur">
+                        <option value="temperature">🌡️ Température</option>
+                        <option value="pression">⏲️ Pression</option>
+                        <option value="vibration">📳 Vibration</option>
+                        <option value="debit_gaz">🔥 Débit Gaz</option>
+                    </select>
+                    <select id="newType">
+                        <option value="max">Maximum (alerte si valeur > seuil)</option>
+                        <option value="min">Minimum (alerte si valeur < seuil)</option>
+                    </select>
+                    <input type="number" id="newSeuil" placeholder="Valeur seuil" step="0.1">
+                    <input type="text" id="newMessage" placeholder="Message d'alerte">
+                    <button id="btnCreerAlerte">Créer l'alerte</button>
+                </div>
+            </div>
+            
+            <div class="card">
+                <h3>📋 Alertes actives</h3>
+                <div id="alertesListe">
+                    <!-- Liste générée dynamiquement -->
+                </div>
+            </div>
+        </div>
+        
+        <div class="card" id="alertesDéclenchéesCard">
+            <h3>⚠️ Alertes déclenchées</h3>
+            <div id="alertesDeclenchees">
+                <!-- Alertes déclenchées affichées ici -->
+            </div>
+        </div>
+    </main>
+
+    <script src="script.js"></script>
+    <script>
+        function afficherAlertes() {
+            const container = document.getElementById('alertesListe');
+            container.innerHTML = alertes.length === 0 ? '<p>Aucune alerte configurée.</p>' : '';
+            
+            alertes.forEach((alerte, index) => {
+                const capteurInfo = capteurs.find(c => c.id === alerte.capteur);
+                const div = document.createElement('div');
+                div.style.cssText = 'background: #1a1a2e; padding: 0.8rem; margin-bottom: 0.5rem; border-radius: 8px; display: flex; justify-content: space-between; align-items: center;';
+                div.innerHTML = `
+                    <div>
+                        <strong>${capteurInfo ? capteurInfo.nom : alerte.capteur}</strong> - 
+                        ${alerte.type === 'max' ? '>' : '<'} ${alerte.seuil}
+                        <br><small>${alerte.message || 'Aucun message'}</small>
+                    </div>
+                    <button onclick="supprimerAlerte(${index})" style="background: #ef476f;">🗑️</button>
+                `;
+                container.appendChild(div);
+            });
+        }
+        
+        function supprimerAlerte(index) {
+            alertes.splice(index, 1);
+            sauvegarderAlertes();
+            afficherAlertes();
+        }
+        
+        async function verifierAlertesTempsReel() {
+            const declenchees = [];
+            
+            for (const alerte of alertes.filter(a => a.active !== false)) {
+                const valeur = await getDerniereValeur(alerte.capteur);
+                if (valeur !== null) {
+                    let estDeclenchee = false;
+                    if (alerte.type === 'max' && valeur > alerte.seuil) estDeclenchee = true;
+                    if (alerte.type === 'min' && valeur < alerte.seuil) estDeclenchee = true;
+                    
+                    if (estDeclenchee) {
+                        const capteurInfo = capteurs.find(c => c.id === alerte.capteur);
+                        declenchees.push({
+                            ...alerte,
+                            valeur_actuelle: valeur,
+                            nom_capteur: capteurInfo?.nom || alerte.capteur
+                        });
+                    }
+                }
+            }
+            
+            const container = document.getElementById('alertesDeclenchees');
+            if (declenchees.length === 0) {
+                container.innerHTML = '<p>✅ Aucune alerte déclenchée</p>';
+            } else {
+                container.innerHTML = declenchees.map(a => `
+                    <div class="alert-card" style="margin-bottom: 0.5rem; padding: 1rem; border-radius: 8px;">
+                        <strong>${a.nom_capteur}</strong><br>
+                        ${a.type === 'max' ? 'Dépassement du seuil maximum' : 'Valeur en dessous du seuil minimum'}<br>
+                        Valeur actuelle : <strong>${a.valeur_actuelle}</strong> | Seuil : ${a.seuil}<br>
+                        <small>${a.message || ''}</small>
+                    </div>
+                `).join('');
+            }
+        }
+        
+        document.getElementById('btnCreerAlerte').addEventListener('click', () => {
+            const capteur = document.getElementById('newCapteur').value;
+            const type = document.getElementById('newType').value;
+            const seuil = parseFloat(document.getElementById('newSeuil').value);
+            const message = document.getElementById('newMessage').value;
+            
+            if (isNaN(seuil)) {
+                alert("Veuillez entrer un seuil valide");
+                return;
+            }
+            
+            alertes.push({ capteur, type, seuil, message, active: true });
+            sauvegarderAlertes();
+            
+            // Réinitialiser les champs
+            document.getElementById('newSeuil').value = '';
+            document.getElementById('newMessage').value = '';
+            
+            afficherAlertes();
+        });
+        
+        afficherAlertes();
+        verifierAlertesTempsReel();
+        setInterval(verifierAlertesTempsReel, 5000);
+    </script>
+</body>
+</html>
