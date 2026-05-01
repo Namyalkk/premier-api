@@ -1,7 +1,7 @@
 // script.js - Fonctions communes
 
 // Configuration - À MODIFIER APRÈS DÉPLOIEMENT
-const API_URL = "http://127.0.0.1:8000";  // Remplacez par votre URL Render plus tard
+const API_URL = "https://premier-api-production-b355.up.railway.app";  // Remplacez par votre URL Render plus tard
 
 // Liste des capteurs
 const capteurs = [
